@@ -6,7 +6,7 @@
 	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
 				http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-3.0.xsd
 				http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.0.xsd
-				http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc-3.0.xsd
+				http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc.xsd
 				http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-3.0.xsd"
 	default-autowire="byName">
 	
@@ -14,7 +14,30 @@
 	<context:component-scan base-package="com.wangfj.**.controller" />
 	
 	<!-- jsr303数据校验的配置 --><!-- 启动Spring MVC的注解功能，完成请求和注解POJO的映射   请求映射-->
-	<mvc:annotation-driven/>
+	<!-- <mvc:annotation-driven/> -->
+	<mvc:annotation-driven
+		content-negotiation-manager="contentNegotiationManager" />
+	<bean id="contentNegotiationManager"
+		class="org.springframework.web.accept.ContentNegotiationManagerFactoryBean">
+		<property name="defaultContentType" value="text/html" />
+		<property name="favorParameter" value="false" />
+		<property name="favorPathExtension" value="false" />
+		<property name="ignoreAcceptHeader" value="false" />
+		<property name="mediaTypes">
+			<map>
+				<entry key="json" value="application/json" />
+				<entry key="html" value="text/html" />
+				<entry key="xml" value="application/xml" />
+				<entry key="gif" value="image/gif" />
+				<entry key="jpg" value="image/jpeg" />
+				<entry key="jpeg" value="image/jpeg" />
+				<entry key="png" value="image/png" />
+				<entry key="ico" value="image/bmp" />
+				<entry key="js" value="text/javascript" />
+			</map>
+		</property>
+		<property name="parameterName" value="format" />
+	</bean>
 	<!-- 在controller中，将对象转成json返回 -->
 	<bean id="jacksonMessageConverter"
 		class="org.springframework.http.converter.json.MappingJacksonHttpMessageConverter">
@@ -42,7 +65,7 @@
     -->
     <!-- 针对freemarker的视图配置  freemarkerConfig中指定视图路径，在viewResolver中指定视图格式-->
      
-    <bean id="freemarkerConfig"
+    <!-- <bean id="freemarkerConfig"
         class="org.springframework.web.servlet.view.freemarker.FreeMarkerConfigurer">
         <property name="templateLoaderPath" value="/freemarker/" />
         <property name="freemarkerSettings">
@@ -66,7 +89,7 @@
         <property name="exposeSpringMacroHelpers" value="true" />
         <property name="exposeRequestAttributes" value="true" />
         <property name="exposeSessionAttributes" value="true" />
-    </bean>
+    </bean> -->
     <!-- 多种视图混合使用 -->
     <!--  
     <bean id="freemarkerConfig"
