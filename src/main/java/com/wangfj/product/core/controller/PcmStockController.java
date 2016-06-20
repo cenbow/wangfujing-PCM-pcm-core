@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import com.alibaba.druid.sql.visitor.functions.If;
 import com.wangfj.core.constants.ComErrorCodeConstants.ErrorCode;
 import com.wangfj.core.framework.base.controller.BaseController;
 import com.wangfj.core.framework.exception.BleException;
@@ -31,8 +32,10 @@ import com.wangfj.product.common.domain.vo.PcmExceptionLogDto;
 import com.wangfj.product.common.service.intf.IPcmExceptionLogService;
 import com.wangfj.product.constants.StatusCodeConstants.StatusCode;
 import com.wangfj.product.core.controller.support.PcmEdiProductStockPara;
+import com.wangfj.product.core.controller.support.PcmStockWCSPara;
 import com.wangfj.product.core.controller.support.StockProCountListPara;
 import com.wangfj.product.core.controller.support.StockProCountPara;
+import com.wangfj.product.core.controller.support.base.constants.CommonParamValidate;
 import com.wangfj.product.stocks.domain.vo.PcmProductStockInfoDto;
 import com.wangfj.product.stocks.domain.vo.StockProCountDto;
 import com.wangfj.product.stocks.domain.vo.StockProCountListDto;
@@ -106,25 +109,28 @@ public class PcmStockController extends BaseController {
 		StockResultDto resultDto = new StockResultDto();
 		if (listProCountDto.size() < Constants.STOCK_LINE_COUNT) {
 			try {
-				if (Constants.PCM_ISOFFERLINE0.equals(stockProCountListDto.getIsOfferLine()
-						.toString())) {
+				if (Constants.PCM_ISOFFERLINE0
+						.equals(stockProCountListDto.getIsOfferLine().toString())) {
 					resultDto = pcmStockService.findInsertAndReduceFromPcmV2(stockProCountListDto);
 					pcmStockService.updateSKUStatus(listSkuStockDto);
-				} else if (Constants.PCM_ISOFFERLINE1.equals(stockProCountListDto.getIsOfferLine()
-						.toString())) {
+					pushOrderStockToWCS(stockProCountListDto);
+				} else if (Constants.PCM_ISOFFERLINE1
+						.equals(stockProCountListDto.getIsOfferLine().toString())) {
 					StockResultDto resultDtoOffLine = new StockResultDto();
 					resultDto.setResultFlag(Constants.PCM_OPERATION_SUCCEED);
 					try {
 						resultDtoOffLine = pcmStockService
 								.findInsertAndReduceFromPcmByOffLine(stockProCountListDto);
 						pcmStockService.updateSKUStatus(listSkuStockDto);
+						pushOrderStockToWCS(stockProCountListDto);
 					} catch (BleException e) {
 						resultDtoOffLine.setResultFlag(Constants.PCM_OPERATION_FAILED);
 						resultDtoOffLine.setResultMsg(e.getMessage());
 						logger.error("API,findInsertAndReduceFromPcm.htm,Error:" + e.getMessage());
 					}
 					try {
-						if (resultDtoOffLine.getResultFlag().equals(Constants.PCM_OPERATION_FAILED)) {
+						if (resultDtoOffLine.getResultFlag()
+								.equals(Constants.PCM_OPERATION_FAILED)) {
 							SavaErrorMessage(
 									JsonUtil.getJSONString(resultDtoOffLine.getResultMsg()),
 									JsonUtil.getJSONString(stockProCountListDto));
@@ -135,7 +141,8 @@ public class PcmStockController extends BaseController {
 					}
 					if (stockProCountListDto.getCzType() == Constants.PCMSTOCK_OPERATION_TYPE0) {// 锁库
 						return ResultUtil.creComSucResult(ErrorCode.STOCK_LOCK_SUCCEED.getMemo());
-					} else if (stockProCountListDto.getCzType() == Constants.PCMSTOCK_OPERATION_TYPE1) {// 解锁
+					} else if (stockProCountListDto
+							.getCzType() == Constants.PCMSTOCK_OPERATION_TYPE1) {// 解锁
 						return ResultUtil.creComSucResult(ErrorCode.STOCK_REDUCE_SUCCEED.getMemo());
 					} else {
 						return ResultUtil.creComSucResult(resultDtoOffLine.getResultMsg());
@@ -182,9 +189,73 @@ public class PcmStockController extends BaseController {
 			}
 			return ResultUtil.creComSucResult(resultDto.getResultMsg());
 		} else {
-			return ResultUtil
-					.creComErrorResult(resultDto.getResultFlag(), resultDto.getResultMsg());
+			return ResultUtil.creComErrorResult(resultDto.getResultFlag(),
+					resultDto.getResultMsg());
 		}
+	}
+
+	/**
+	 * 订单变更库存数推送给WCS
+	 * 
+	 * @Methods Name pushOrderStockToWCS
+	 * @Create In 2016年6月20日 By kongqf
+	 * @param dto
+	 *            void
+	 */
+	public void pushOrderStockToWCS(final StockProCountListDto dto) {
+		taskExecutor.execute(new Runnable() {
+			@Override
+			public void run() {
+				if (!CommonParamValidate.WCS.equals(dto.getFromSystem())) {
+					List<PcmStockWCSPara> paraList = new ArrayList<PcmStockWCSPara>();
+					PcmStockWCSPara para = null;
+					for (StockProCountDto stockProCountDto : dto.getProducts()) {
+						para = new PcmStockWCSPara();
+						para.setType(getWCSOrderType(stockProCountDto.getStockType()));
+						para.setMatnr(stockProCountDto.getSupplyProductNo());
+						para.setNum(stockProCountDto.getSaleSum());
+						if (Constants.PCMSTOCK_ISPAY_REDUCESTOCK1
+								.equals(stockProCountDto.getIsPayReduce())) {
+							if (Constants.PCMSTOCK_YES_UNLOCK == stockProCountDto.getStockType()) {
+								paraList.add(para);
+							}
+						} else {
+							paraList.add(para);
+						}
+					}
+					String wcsStockUrl = PropertyUtil.getSystemUrl("wcs.order.stock");
+					logger.info("API,synPushStockToWCS,request:" + paraList.toString());
+					String response = HttpUtil.doPost(wcsStockUrl,
+							JsonUtil.getJSONString(paraList));
+					logger.info("API,synPushStockToWCS,response:" + response);
+				}
+			}
+		});
+	}
+
+	/**
+	 * 获取wcs操作类型
+	 * 
+	 * @Methods Name getWCSOrderType
+	 * @Create In 2016年6月20日 By kongqf
+	 * @param stockType
+	 * @return String
+	 */
+	private String getWCSOrderType(Integer stockType) {
+		String wcsType = "0";
+		switch (stockType) {
+		case 1023:// 锁库
+			wcsType = "1";
+			break;
+		case 1021:// 减库
+			wcsType = "3";
+			break;
+		case 1022:// 解锁
+			wcsType = "2";
+			break;
+		}
+
+		return wcsType;
 	}
 
 	/**
