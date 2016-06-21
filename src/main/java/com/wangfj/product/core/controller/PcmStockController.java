@@ -223,11 +223,22 @@ public class PcmStockController extends BaseController {
 							paraList.add(para);
 						}
 					}
-					String wcsStockUrl = PropertyUtil.getSystemUrl("wcs.order.stock");
-					logger.info("API,synPushStockToWCS,request:" + paraList.toString());
-					String response = HttpUtil.doPost(wcsStockUrl,
-							JsonUtil.getJSONString(paraList));
-					logger.info("API,synPushStockToWCS,response:" + response);
+					if (paraList != null && paraList.size() > 0) {
+						String wcsStockUrl = PropertyUtil.getSystemUrl("wcs.order.stock");
+						logger.info("API,synPushStockToWCS,request:" + paraList.toString());
+						String response;
+						try {
+							response = HttpUtil.doPost(wcsStockUrl,
+									JsonUtil.getJSONString(paraList));
+							logger.info("API,synPushStockToWCS,response:" + response);
+						} catch (Exception e) {
+							ThrowExcetpionUtil.splitExcetpion(new BleException(
+									ErrorCode.STOCK_IMPORT_PUSH_ERROR.getErrorCode(),
+									ErrorCode.STOCK_IMPORT_PUSH_ERROR.getMemo() + wcsStockUrl
+											+ e.getMessage()));
+							SavaErrorMessage(e.getMessage(), JsonUtil.getJSONString(paraList));
+						}
+					}
 				}
 			}
 		});
