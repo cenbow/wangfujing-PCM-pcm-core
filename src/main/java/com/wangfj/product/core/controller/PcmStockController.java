@@ -19,7 +19,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 
-import com.alibaba.druid.sql.visitor.functions.If;
 import com.wangfj.core.constants.ComErrorCodeConstants.ErrorCode;
 import com.wangfj.core.framework.base.controller.BaseController;
 import com.wangfj.core.framework.exception.BleException;
@@ -211,7 +210,8 @@ public class PcmStockController extends BaseController {
 					PcmStockWCSPara para = null;
 					for (StockProCountDto stockProCountDto : dto.getProducts()) {
 						para = new PcmStockWCSPara();
-						para.setType(getWCSOrderType(stockProCountDto.getStockType()));
+						para.setType(getWCSOrderType(stockProCountDto.getStockType(),
+								stockProCountDto.getIsPayReduce()));
 						para.setMatnr(stockProCountDto.getSupplyProductNo());
 						para.setNum(stockProCountDto.getSaleSum());
 						if (Constants.PCMSTOCK_ISPAY_REDUCESTOCK1
@@ -241,14 +241,18 @@ public class PcmStockController extends BaseController {
 	 * @param stockType
 	 * @return String
 	 */
-	private String getWCSOrderType(Integer stockType) {
+	private String getWCSOrderType(Integer stockType, String isPayReduce) {
 		String wcsType = "0";
 		switch (stockType) {
 		case 1023:// 锁库
 			wcsType = "1";
 			break;
 		case 1021:// 减库
-			wcsType = "3";
+			if (Constants.PCMSTOCK_ISPAY_REDUCESTOCK1.equals(isPayReduce)) {
+				wcsType = "4";
+			} else {
+				wcsType = "3";
+			}
 			break;
 		case 1022:// 解锁
 			wcsType = "2";
