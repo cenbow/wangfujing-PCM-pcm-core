@@ -128,8 +128,8 @@ public class PcmStockController extends BaseController {
 						logger.error("API,findInsertAndReduceFromPcm.htm,Error:" + e.getMessage());
 					}
 					try {
-						if (resultDtoOffLine.getResultFlag()
-								.equals(Constants.PCM_OPERATION_FAILED)) {
+						if (Constants.PCM_OPERATION_FAILED
+								.equals(resultDtoOffLine.getResultFlag())) {
 							SavaErrorMessage(
 									JsonUtil.getJSONString(resultDtoOffLine.getResultMsg()),
 									JsonUtil.getJSONString(stockProCountListDto));
@@ -163,7 +163,7 @@ public class PcmStockController extends BaseController {
 			resultDto.setResultFlag(Constants.PCM_OPERATION_FAILED);
 			resultDto.setResultMsg(ErrorCode.STOCK_IMPORT_ERROR.getMemo());
 		}
-		if (resultDto.getResultFlag().equals(Constants.PCM_OPERATION_SUCCEED)) {
+		if (Constants.PCM_OPERATION_SUCCEED.equals(resultDto.getResultFlag())) {
 			// 库存下发
 			if (proList != null && proList.size() > 0) {
 				taskExecutor.execute(new Runnable() {
