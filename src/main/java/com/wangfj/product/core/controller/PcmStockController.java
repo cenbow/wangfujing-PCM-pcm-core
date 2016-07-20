@@ -150,11 +150,11 @@ public class PcmStockController extends BaseController {
 			} catch (BleException e) {
 				resultDto.setResultFlag(Constants.PCM_OPERATION_FAILED);
 				resultDto.setResultMsg(e.getMessage());
-				if (e.getCode().equals(ErrorCode.STOCK_LOCK_FAILED_ERROR.getMemo())
-						|| e.getCode().equals(ErrorCode.STOCK_REDUCE_FAILED_ERROR.getMemo())
-						|| e.getCode().equals(ErrorCode.STOCK_UNLOCK_FAILED_ERROR.getMemo())
-						|| e.getCode().equals(ErrorCode.STOCK_REFUND_FAILED_ERROR.getMemo())
-						|| e.getCode().equals(ErrorCode.STOCK_OPERATION_FAILED_ERROR.getMemo())) {
+				if (e.getCode().equals(ErrorCode.STOCK_LOCK_FAILED_ERROR.getErrorCode())
+						|| e.getCode().equals(ErrorCode.STOCK_REDUCE_FAILED_ERROR.getErrorCode())
+						|| e.getCode().equals(ErrorCode.STOCK_UNLOCK_FAILED_ERROR.getErrorCode())
+						|| e.getCode().equals(ErrorCode.STOCK_REFUND_FAILED_ERROR.getErrorCode())
+						|| e.getCode().equals(ErrorCode.STOCK_OPERATION_FAILED_ERROR.getErrorCode())) {
 					ThrowExcetpionUtil
 							.splitExcetpion(new BleException(e.getCode(), e.getMessage()));
 				}
