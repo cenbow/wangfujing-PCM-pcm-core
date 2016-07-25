@@ -154,9 +154,10 @@ public class PcmStockController extends BaseController {
 						|| e.getCode().equals(ErrorCode.STOCK_REDUCE_FAILED_ERROR.getErrorCode())
 						|| e.getCode().equals(ErrorCode.STOCK_UNLOCK_FAILED_ERROR.getErrorCode())
 						|| e.getCode().equals(ErrorCode.STOCK_REFUND_FAILED_ERROR.getErrorCode())
-						|| e.getCode().equals(ErrorCode.STOCK_OPERATION_FAILED_ERROR.getErrorCode())) {
-					ThrowExcetpionUtil
-							.splitExcetpion(new BleException(e.getCode(), e.getMessage()));
+						|| e.getCode()
+								.equals(ErrorCode.STOCK_OPERATION_FAILED_ERROR.getErrorCode())) {
+					ThrowExcetpionUtil.splitExcetpion(new BleException(e.getCode(),
+							JsonUtil.getJSONString(stockProCountListDto) + e.getMessage()));
 				}
 			}
 		} else {
