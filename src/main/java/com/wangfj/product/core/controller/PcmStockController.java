@@ -39,6 +39,7 @@ import com.wangfj.product.stocks.domain.vo.PcmProductStockInfoDto;
 import com.wangfj.product.stocks.domain.vo.StockProCountDto;
 import com.wangfj.product.stocks.domain.vo.StockProCountListDto;
 import com.wangfj.product.stocks.domain.vo.StockResultDto;
+import com.wangfj.product.stocks.service.intf.IPcmStockLockRecordService;
 import com.wangfj.product.stocks.service.intf.IPcmStockService;
 import com.wangfj.util.Constants;
 
@@ -56,6 +57,8 @@ public class PcmStockController extends BaseController {
 
 	@Autowired
 	private IPcmStockService pcmStockService;
+	@Autowired
+	private IPcmStockLockRecordService pcmStockLockService;
 	@Autowired
 	private ThreadPoolTaskExecutor taskExecutor;
 	@Autowired
@@ -113,6 +116,7 @@ public class PcmStockController extends BaseController {
 					resultDto = pcmStockService.findInsertAndReduceFromPcmV2(stockProCountListDto);
 					pcmStockService.updateSKUStatus(listSkuStockDto);
 					pushOrderStockToWCS(stockProCountListDto);
+					delStockRecord(stockProCountListDto);
 				} else if (Constants.PCM_ISOFFERLINE1
 						.equals(stockProCountListDto.getIsOfferLine().toString())) {
 					StockResultDto resultDtoOffLine = new StockResultDto();
@@ -122,6 +126,7 @@ public class PcmStockController extends BaseController {
 								.findInsertAndReduceFromPcmByOffLine(stockProCountListDto);
 						pcmStockService.updateSKUStatus(listSkuStockDto);
 						pushOrderStockToWCS(stockProCountListDto);
+						delStockRecord(stockProCountListDto);
 					} catch (BleException e) {
 						resultDtoOffLine.setResultFlag(Constants.PCM_OPERATION_FAILED);
 						resultDtoOffLine.setResultMsg(e.getMessage());
@@ -240,6 +245,57 @@ public class PcmStockController extends BaseController {
 							SavaErrorMessage(e.getMessage(), JsonUtil.getJSONString(paraList));
 						}
 					}
+				}
+			}
+		});
+	}
+
+	/**
+	 * 删除锁库记录
+	 * 
+	 * @Methods Name delStockRecord
+	 * @Create In 2016年8月15日 By kongqf
+	 * @param dto
+	 *            void
+	 */
+	public void delStockRecord(final StockProCountListDto dto) {
+		taskExecutor.execute(new Runnable() {
+			@Override
+			public void run() {
+				try {
+					if (dto != null) {
+						boolean isArchive = false;
+						if (Constants.PCM_ISOFFERLINE0.equals(dto.getIsOfferLine().toString())) {
+							for (StockProCountDto stockProCountDto : dto.getProducts()) {
+								if (dto.getCzType() == Constants.PCMSTOCK_OPERATION_TYPE1
+										|| dto.getCzType() == Constants.PCMSTOCK_OPERATION_TYPE2) {
+									if (Constants.PCMSTOCK_ISPAY_REDUCESTOCK0
+											.equals(stockProCountDto.getIsPayReduce())) {
+										isArchive = true;
+									}
+								}
+							}
+						} else if (Constants.PCM_ISOFFERLINE1
+								.equals(dto.getIsOfferLine().toString())) {
+							if (dto.getCzType() == Constants.PCMSTOCK_OPERATION_TYPE1) {
+								isArchive = true;
+							}
+						}
+						if (isArchive) {
+							boolean isDel = pcmStockLockService
+									.delStockRecordBySalesItemNo(dto.getSaleNo());
+							logger.warn("锁库记录移库" + isDel + "，销售单号：" + dto.getSaleNo());
+						}
+					}
+				} catch (Exception e) {
+					logger.error("调用delStockRecord异常:", e);
+					PcmExceptionLogDto pcmExceptionLogDto = new PcmExceptionLogDto();
+					pcmExceptionLogDto.setInterfaceName("delStockRecord");
+					pcmExceptionLogDto.setExceptionType(StatusCode.EXCEPTION_STOCK.getStatus());
+					pcmExceptionLogDto.setErrorMessage("调用delStockRecord异常:" + e);
+					pcmExceptionLogDto.setDataContent(JsonUtil.getJSONString(dto));
+					pcmExceptionLogDto.setUuid(UUID.randomUUID().toString());
+					pcmExceptionLogService.saveExceptionLogInfo(pcmExceptionLogDto);
 				}
 			}
 		});
