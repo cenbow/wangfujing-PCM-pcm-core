@@ -26,8 +26,8 @@ public class TestStockService {
 	 */
 	@Test
 	public void getStockCounts() {
-		Map<String, Object> selectStockInfo = pcmShoppeProSid.selectStockInfo("10000022");
-		System.out.println(selectStockInfo);
+		/*Map<String, Object> selectStockInfo = pcmShoppeProSid.selectStockInfo("10000022");
+		System.out.println(selectStockInfo);*/
 	}
 
 	@Autowired
