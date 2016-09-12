@@ -37,6 +37,11 @@
 		<level value="WARN" />
 		<appender-ref ref="ASYNC" />
 	</logger>
+	<logger name="com.wfj.netty" additivity="false">
+		<level value="INFO" />
+		<appender-ref ref="STDOUT" />
+		<appender-ref ref="ASYNC" />
+	</logger>
 	<logger name="org" additivity="false">
 		<level value="ERROR" />
 		<appender-ref ref="STDOUT" />
