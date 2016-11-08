@@ -30,11 +30,12 @@ import com.wangfj.core.utils.ThrowExcetpionUtil;
 import com.wangfj.product.common.domain.vo.PcmExceptionLogDto;
 import com.wangfj.product.common.service.intf.IPcmExceptionLogService;
 import com.wangfj.product.constants.StatusCodeConstants.StatusCode;
-import com.wangfj.product.core.controller.support.PcmEdiProductStockPara;
+import com.wangfj.product.core.controller.support.PcmEdiProStockPara;
 import com.wangfj.product.core.controller.support.PcmStockWCSPara;
 import com.wangfj.product.core.controller.support.StockProCountListPara;
 import com.wangfj.product.core.controller.support.StockProCountPara;
 import com.wangfj.product.core.controller.support.base.constants.CommonParamValidate;
+import com.wangfj.product.stocks.domain.vo.EdiStockDto;
 import com.wangfj.product.stocks.domain.vo.PcmProductStockInfoDto;
 import com.wangfj.product.stocks.domain.vo.StockProCountDto;
 import com.wangfj.product.stocks.domain.vo.StockProCountListDto;
@@ -81,8 +82,9 @@ public class PcmStockController extends BaseController {
 		List<StockProCountDto> listProCountDto = new ArrayList<StockProCountDto>();
 		List<PcmProductStockInfoDto> listSkuStockDto = new ArrayList<PcmProductStockInfoDto>();
 		PcmProductStockInfoDto skuStockDto = null;
-		final List<String> proList = new ArrayList<String>();
-		final PcmEdiProductStockPara pushList = new PcmEdiProductStockPara();
+		EdiStockDto ediStockDto = null;
+		final List<EdiStockDto> proList = new ArrayList<EdiStockDto>();
+		final PcmEdiProStockPara pushList = new PcmEdiProStockPara();
 		try {
 			BeanUtils.copyProperties(stockProCountListDto, stockProCountListPara);
 			for (StockProCountPara para : listProCountPara) {
@@ -98,7 +100,13 @@ public class PcmStockController extends BaseController {
 				skuStockDto = new PcmProductStockInfoDto();
 				skuStockDto.setShoppeProSid(dto.getSupplyProductNo());
 				pushList.setChannelCode(dto.getChannelSid());
-				proList.add(dto.getSupplyProductNo());
+				// 推送edi
+				ediStockDto = new EdiStockDto();
+				ediStockDto = getPushEdiStockDto(dto);
+				if (ediStockDto != null) {
+					proList.add(ediStockDto);
+				}
+				// proList.add(dto.getSupplyProductNo());
 				listSkuStockDto.add(skuStockDto);
 			}
 			stockProCountListDto.setProducts(listProCountDto);
@@ -328,6 +336,48 @@ public class PcmStockController extends BaseController {
 		}
 
 		return wcsType;
+	}
+
+	/**
+	 * 获取推送EDI参数
+	 * 
+	 * @Methods Name getPushEdiStockDto
+	 * @Create In 2016年11月7日 By kongqf
+	 * @param dto
+	 * @return EdiStockDto
+	 */
+	public EdiStockDto getPushEdiStockDto(StockProCountDto dto) {
+		EdiStockDto ediDto = null;
+		if (dto != null) {
+			String type = null, remarks = null;
+			boolean isPush = false;
+			if (Constants.PCMSTOCK_NO_LOCK == dto.getStockType()
+					&& Constants.PCMSTOCK_ISPAY_REDUCESTOCK0.equals(dto.getIsPayReduce())) {// 锁库
+				type = StatusCode.EDITYPE_LOCKFROMORDER.getStatus();
+				remarks = String.format(Constants.EDITYPE_LOCKFROMORDER, dto.getSalesItemNo(),
+						dto.getSaleSum());
+				isPush = true;
+			} else if (Constants.PCMSTOCK_YES_UNLOCK == dto.getStockType()
+					&& Constants.PCMSTOCK_ISPAY_REDUCESTOCK1.equals(dto.getIsPayReduce())) {// 减库
+				type = StatusCode.EDITYPE_REDUCTIONFROMORDER.getStatus();
+				remarks = String.format(Constants.EDITYPE_REDUCTIONFROMORDER, dto.getSalesItemNo(),
+						dto.getSaleSum());
+				isPush = true;
+			} else if (Constants.PCMSTOCK_NO_UNLOCK == dto.getStockType()
+					&& Constants.PCMSTOCK_ISPAY_REDUCESTOCK0.equals(dto.getIsPayReduce())) {// 解锁
+				type = StatusCode.EDITYPE_INCREMENTFROMORDER.getStatus();
+				remarks = String.format(Constants.EDITYPE_INCREMENTFROMORDER, dto.getSalesItemNo(),
+						dto.getSaleSum());
+				isPush = true;
+			}
+			if (isPush) {
+				ediDto = new EdiStockDto();
+				ediDto.setProSid(dto.getSupplyProductNo());
+				ediDto.setType(type);
+				ediDto.setRemerks(remarks);
+			}
+		}
+		return ediDto;
 	}
 
 	/**
